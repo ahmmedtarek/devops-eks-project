@@ -243,3 +243,134 @@ resource "aws_ecr_repository" "app" {
   }
 }
 
+resource "aws_iam_role" "cluster_role" {
+    name = "eks-cluster-role"
+    assume_role_policy = jsonencode({
+        Version = "2012-10-17"
+        Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Sid    = ""
+        Principal = {
+          Service = "eks.amazonaws.com"
+        }
+      },
+    ]
+    })
+    
+    tags = {
+        Name = "eks-cluster-role"
+    }
+}
+
+resource "aws_iam_role_policy_attachment" "eks_cluster_role" {
+    role = aws_iam_role.cluster_role.name
+    policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+}
+
+resource "aws_iam_role" "worker_role" {
+    name = "eks-worker-role"
+    assume_role_policy = jsonencode({
+        Version = "2012-10-17"
+        Statement = [
+        {
+            Action = "sts:AssumeRole"
+            Effect = "Allow"
+            Sid    = ""
+            Principal = {
+            Service = "ec2.amazonaws.com"
+            }
+        },
+        ]
+    })
+    tags = {
+        Name = "worker-role"
+    }
+}
+
+resource "aws_iam_role_policy_attachment" "worker_policy" {
+    role = aws_iam_role.worker_role.name
+    policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+}
+
+resource "aws_iam_role_policy_attachment" "CNI_policy" {
+    role = aws_iam_role.worker_role.name
+    policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+}
+
+resource "aws_iam_role_policy_attachment" "pull_image_policy" {
+    role = aws_iam_role.worker_role.name
+    policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly"
+}
+
+resource "aws_eks_cluster" "main" {
+  name = "devops-eks-cluster"
+
+  access_config {
+    authentication_mode = "API"
+  }
+
+  role_arn = aws_iam_role.cluster_role.arn
+  version  = "1.35"
+
+  vpc_config {
+    subnet_ids = [
+      aws_subnet.private_1.id,
+      aws_subnet.private_2.id,
+    ]
+  }
+
+  # Ensure that IAM Role permissions are created before and deleted
+  # after EKS Cluster handling. Otherwise, EKS will not be able to
+  # properly delete EKS managed EC2 infrastructure such as Security Groups.
+  depends_on = [
+    aws_iam_role_policy_attachment.eks_cluster_role,
+  ]
+}
+
+resource "aws_eks_node_group" "main" {
+  cluster_name    = aws_eks_cluster.main.name
+  node_group_name = "devops-eks-node-group"
+
+  node_role_arn = aws_iam_role.worker_role.arn
+
+  subnet_ids = [
+    aws_subnet.private_1.id,
+    aws_subnet.private_2.id
+  ]
+
+  instance_types = ["t3.small"]
+
+  scaling_config {
+    desired_size = 2
+    min_size     = 1
+    max_size     = 2
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.worker_policy,
+    aws_iam_role_policy_attachment.CNI_policy,
+    aws_iam_role_policy_attachment.pull_image_policy
+  ]
+
+  tags = {
+    Name = "eks-worker-node"
+  }
+}
+
+resource "aws_eks_access_entry" "admin_user" {
+  cluster_name  = aws_eks_cluster.main.name
+  principal_arn = "arn:aws:iam::305018987435:user/ahmmedtarek"
+}
+
+resource "aws_eks_access_policy_association" "admin_user" {
+  cluster_name  = aws_eks_cluster.main.name
+  principal_arn = aws_eks_access_entry.admin_user.principal_arn
+
+  policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+
+  access_scope {
+    type = "cluster"
+  }
+}

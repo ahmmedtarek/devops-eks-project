@@ -210,7 +210,8 @@ resource "aws_iam_policy" "jenkins_ecr_policy" {
           "ecr:InitiateLayerUpload",
           "ecr:CompleteLayerUpload",
           "ecr:UploadLayerPart",
-          "ecr:PutImage"
+          "ecr:PutImage",
+          "ecr:BatchGetImage"
         ]
 
         Resource = "*"

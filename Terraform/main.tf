@@ -221,7 +221,16 @@ resource "aws_iam_policy" "jenkins_ecr_policy" {
           "ecr:PutImage",
           "ecr:BatchGetImage"
         ]
+  
+        Resource = "*"
+      },
+      {
+        Sid    = "EKScluster"
+        Effect = "Allow"
 
+        Action = [
+          "eks:DescribeCluster"
+        ]
         Resource = "*"
       }
     ]
@@ -375,6 +384,23 @@ resource "aws_eks_access_entry" "admin_user" {
 resource "aws_eks_access_policy_association" "admin_user" {
   cluster_name  = aws_eks_cluster.main.name
   principal_arn = aws_eks_access_entry.admin_user.principal_arn
+
+  policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+
+  access_scope {
+    type = "cluster"
+  }
+}
+
+resource "aws_eks_access_entry" "jenkins" {
+  cluster_name  = aws_eks_cluster.main.name
+  principal_arn = aws_iam_role.ec2_role_to_ecr.arn
+  type          = "STANDARD"
+}
+
+resource "aws_eks_access_policy_association" "jenkins" {
+  cluster_name  = aws_eks_cluster.main.name
+  principal_arn = aws_iam_role.ec2_role_to_ecr.arn
 
   policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
 

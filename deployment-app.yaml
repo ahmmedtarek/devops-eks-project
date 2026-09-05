@@ -1,24 +1,26 @@
 apiVersion: apps/v1
 kind: Deployment
+
 metadata:
+  name: app
   labels:
     app: app
-  name: app
+
 spec:
   replicas: 2
+
   selector:
     matchLabels:
       app: app
-  strategy: {}
+
   template:
     metadata:
       labels:
         app: app
+
     spec:
       containers:
-      - image: 305018987435.dkr.ecr.eu-north-1.amazonaws.com/app:1
-        name: app
-        ports:
-        - containerPort: 5000
-        resources: {}
-status: {}
+        - name: app
+          image: 305018987435.dkr.ecr.eu-north-1.amazonaws.com/app:27
+          ports:
+            - containerPort: 5000

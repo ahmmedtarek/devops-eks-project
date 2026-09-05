@@ -21,6 +21,6 @@ spec:
     spec:
       containers:
         - name: app
-          image: 305018987435.dkr.ecr.eu-north-1.amazonaws.com/app:63
+          image: 305018987435.dkr.ecr.eu-north-1.amazonaws.com/app:64
           ports:
             - containerPort: 5000

@@ -72,23 +72,28 @@ pipeline{
                 """
             }
         }
-        stage('Update GitOps Manifest') {
+        stage('Update GitOps Repo') {
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'github-credentials',
                     usernameVariable: 'GIT_USERNAME',
-                    passwordVariable: 'GIT_PASSWORD'
+                    passwordVariable: 'GIT_TOKEN'
                 )]) {
                     sh '''
+                        rm -rf devops-eks-gitops || true
+
+                        git clone https://${GIT_USERNAME}:${GIT_TOKEN}@github.com/ahmmedtarek/devops-eks-gitops.git
+
+                        cd devops-eks-gitops
+
                         sed -i "s|image: .*|image: 305018987435.dkr.ecr.eu-north-1.amazonaws.com/app:${BUILD_NUMBER}|" k8s/deployment-app.yaml
 
-                        git config user.name "ahmmedtarek"
                         git config user.email "ahmmedtarek70@gmail.com"
+                        git config user.name "ahmmedtarek"
 
                         git add k8s/deployment-app.yaml
                         git commit -m "Update image to ${BUILD_NUMBER}"
-                
-                        git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/ahmmedtarek/devops-eks-project.git HEAD:main
+                        git push origin main
                     '''
                 }
             }
